@@ -1,0 +1,1917 @@
+'use client';
+
+import { useState, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Upload, FileSpreadsheet, BarChart3, PieChart, LineChart, AreaChart,
+  ScatterChart, TrendingUp, Grid3x3, Radar as RadarIcon, Filter, Layers,
+  CircleDot, Download, Eye, ChevronRight, Zap, Sparkles, Moon, Sun,
+  Table, FileText, Loader2, AlertTriangle, ChevronDown, ChevronUp,
+  Search, RotateCcw, Palette, Check, Info, AlertCircle, X, Plus, Trash2,
+  Gauge, LayoutDashboard, SlidersHorizontal, Eye as EyeIcon, Link, Youtube,
+  ClipboardPaste, Globe, Hash, Tag, Clock, Users, ThumbsUp, MessageSquare,
+  Building, DollarSign, Target, Shield, Rocket, Lightbulb, AlertOctagon,
+  Calendar, MapPin, Monitor, Smartphone, TrendingDown, Award, Briefcase,
+  ChevronLeft, ExternalLink
+} from 'lucide-react';
+import {
+  LineChart as RechartsLineChart, Line, AreaChart as RechartsAreaChart, Area,
+  BarChart as RechartsBarChart, Bar, PieChart as RechartsPieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  ScatterChart as RechartsScatterChart, Scatter, RadarChart as RechartsRadarChart,
+  PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
+} from 'recharts';
+import { useTheme } from 'next-themes';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import type { ColumnInfo, DataRow, ChartType, ChartConfig, ChartRecommendation, Insight } from '@/types';
+import { CHART_REGISTRY, COLOR_PALETTES } from '@/types';
+
+// ============================================
+// Utility Functions
+// ============================================
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+const formatNumber = (num: number): string => new Intl.NumberFormat('en-US').format(num);
+
+// ============================================
+// Types
+// ============================================
+interface ProcessedData {
+  columns: ColumnInfo[];
+  data: DataRow[];
+  fileName: string;
+  fileSize: number;
+  summary: {
+    totalRows: number;
+    processedRows: number;
+    columns: number;
+    numericColumns: number;
+    categoricalColumns: number;
+    datetimeColumns: number;
+    dataQualityScore?: number;
+  };
+  dataQuality?: { score: number; completeness: number; consistency: number; validity: number };
+}
+
+interface WebsiteSections {
+  basicOverview: {
+    brandName: string;
+    url: string;
+    category: string;
+    targetAudience: string;
+    countryFocus: string;
+    language: string;
+  };
+  historyBackground: {
+    foundingYear: string;
+    background: string;
+    businessModel: string;
+  };
+  trafficReach: {
+    estimatedMonthlyTraffic: string;
+    estimatedDailyVisitors: string;
+    trafficSources: { name: string; percentage: number }[];
+    topGeographicCountries: string[];
+    deviceSplit: { device: string; percentage: number }[];
+  };
+  revenueEarnings: {
+    monetizationMethods: string[];
+    estimatedMonthlyRevenue: string;
+    estimatedYearlyRevenue: string;
+    revenueLogicExplanation: string;
+  };
+  technologyStack: {
+    cmsOrFramework: string;
+    hostingCdn: string;
+    performanceQuality: string;
+    mobileFriendliness: string;
+  };
+  seoVisibility: {
+    keywordOpportunityLevel: string;
+    contentDepthLevel: string;
+    backlinkProfileStrength: string;
+    brandSearchVisibility: string;
+    growthPotentialScore: number;
+  };
+  contentEngagement: {
+    contentQuality: string;
+    contentStrategy: string;
+    engagementDrivers: string[];
+  };
+  competitivePositioning: {
+    competitorTypes: string[];
+    marketPosition: string;
+    differentiators: string[];
+    marketGapOpportunities: string[];
+  };
+  chartData: {
+    trafficSourceDistribution: { name: string; value: number }[];
+    revenueSplit: { name: string; value: number }[];
+    countryTrafficDistribution: { name: string; value: number }[];
+    growthTrend: { month: string; value: number }[];
+    deviceUsageSplit: { name: string; value: number }[];
+  };
+  growthOpportunities: {
+    trafficGrowthStrategies: string[];
+    monetizationExpansion: string[];
+    productContentExpansion: string[];
+    aiAutomationOpportunities: string[];
+    internationalExpansion: string[];
+  };
+  risksLimitations: {
+    dependencyRisks: string[];
+    monetizationRisks: string[];
+    contentSaturationRisk: string;
+    technicalScalingRisks: string[];
+  };
+  roadmap: {
+    shortTerm: string[];
+    mediumTerm: string[];
+    longTerm: string[];
+  };
+  investorSnapshot: {
+    businessAttractiveness: string;
+    scalability: string;
+    monetizationStrength: string;
+    defensibility: string;
+    overallPotentialScore: number;
+  };
+  premiumInsights: {
+    hiddenMonetizationAngles: string[];
+    untappedTrafficChannels: string[];
+    automationPossibilities: string[];
+    aiPersonalizationOpportunities: string[];
+    potentialSaaSFeatures: string[];
+  };
+  finalSummary: string;
+}
+
+interface URLAnalysisData {
+  url: string;
+  title: string;
+  domain: string;
+  wordCount: number;
+  readingTime: number;
+  content: string;
+  keywords: string[];
+  sections: WebsiteSections;
+  analysisDate: string;
+}
+
+interface YouTubeSections {
+  basicOverview: {
+    channelName: string;
+    videoTitle: string;
+    category: string;
+    targetAudience: string;
+    contentLanguage: string;
+    uploadDate: string;
+  };
+  historyBackground: {
+    channelCreationYear: string;
+    contentType: string;
+    publishingStyle: string;
+    channelFocus: string;
+  };
+  trafficReach: {
+    totalSubscribers: string;
+    averageViewsPerVideo: string;
+    uploadFrequency: string;
+    estimatedMonthlyViews: string;
+    audienceGeography: string[];
+  };
+  revenueEarnings: {
+    estimatedRpmRange: string;
+    estimatedAdSenseMonthly: string;
+    sponsorshipPotential: string;
+    affiliateRevenuePotential: string;
+    revenueLogicExplanation: string;
+  };
+  contentEngagement: {
+    hookQuality: string;
+    watchTimePotential: string;
+    thumbnailTitleEffectiveness: string;
+    audienceRetentionPotential: string;
+    engagementDrivers: string[];
+  };
+  competitivePositioning: {
+    competitorTypes: string[];
+    marketPosition: string;
+    differentiators: string[];
+    marketGapOpportunities: string[];
+  };
+  chartData: {
+    engagementTrend: { month: string; views: number; subscribers: number }[];
+    contentPerformance: { type: string; avgViews: number }[];
+    audienceGeography: { country: string; percentage: number }[];
+    revenueSplit: { source: string; percentage: number }[];
+  };
+  growthOpportunities: {
+    trafficGrowthStrategies: string[];
+    monetizationExpansion: string[];
+    contentExpansion: string[];
+    aiAutomationOpportunities: string[];
+    collaborationOpportunities: string[];
+  };
+  risksLimitations: {
+    platformDependencyRisks: string[];
+    monetizationRisks: string[];
+    contentSaturationRisk: string;
+    algorithmChangeRisks: string[];
+  };
+  roadmap: {
+    shortTerm: string[];
+    mediumTerm: string[];
+    longTerm: string[];
+  };
+  investorSnapshot: {
+    channelAttractiveness: string;
+    scalability: string;
+    monetizationStrength: string;
+    defensibility: string;
+    overallPotentialScore: number;
+  };
+  premiumInsights: {
+    hiddenMonetizationAngles: string[];
+    untappedTrafficChannels: string[];
+    automationPossibilities: string[];
+    aiContentOpportunities: string[];
+    potentialProductsOrServices: string[];
+  };
+  finalSummary: string;
+}
+
+interface YouTubeAnalysisData {
+  url: string;
+  videoId: string;
+  title: string;
+  channel: string;
+  thumbnail: string;
+  summary: string;
+  keyTopics: string[];
+  keywords: string[];
+  hashtags: string[];
+  chapters: { title: string; description: string }[];
+  quality: {
+    production: string;
+    audio: string;
+    visuals: string;
+    pacing: string;
+  };
+  sentiment: string;
+  recommendation: string;
+  sections: YouTubeSections;
+  analysisDate: string;
+}
+
+interface DashboardChart {
+  id: string;
+  type: ChartType;
+  config: ChartConfig;
+}
+
+type InputMethod = 'file' | 'paste' | 'url' | 'youtube';
+
+// ============================================
+// Chart Icons Map
+// ============================================
+const CHART_ICONS: Record<ChartType, React.ComponentType<{ className?: string }>> = {
+  'pie': PieChart, 'donut': CircleDot, 'line': LineChart, 'area': AreaChart,
+  'bar': BarChart3, 'stacked-bar': Layers, 'scatter': ScatterChart, 'heatmap': Grid3x3,
+  'radar': RadarIcon, 'funnel': Filter, 'treemap': Grid3x3, 'gauge': Gauge,
+};
+
+// ============================================
+// Animated Background
+// ============================================
+function AnimatedBackground() {
+  return (
+    <div className="fixed inset-0 -z-10 overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-muted/30" />
+      <motion.div className="absolute -top-40 -right-40 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl" animate={{ scale: [1, 1.2, 1], rotate: [0, 180, 360] }} transition={{ duration: 20, repeat: Infinity, ease: 'linear' }} />
+      <motion.div className="absolute -bottom-40 -left-40 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" animate={{ scale: [1.2, 1, 1.2], rotate: [360, 180, 0] }} transition={{ duration: 25, repeat: Infinity, ease: 'linear' }} />
+      <motion.div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-violet-500/5 rounded-full blur-3xl" animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }} />
+    </div>
+  );
+}
+
+// ============================================
+// Logo Component
+// ============================================
+function Logo({ size = 'default' }: { size?: 'default' | 'large' }) {
+  return (
+    <motion.div className={cn('relative', size === 'large' ? 'w-14 h-14' : 'w-10 h-10')} whileHover={{ scale: 1.05 }}>
+      <motion.div
+        className="absolute inset-0 rounded-xl bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-600 shadow-lg"
+        animate={{ boxShadow: ['0 10px 30px -10px rgba(16, 185, 129, 0.4)', '0 15px 40px -10px rgba(16, 185, 129, 0.6)', '0 10px 30px -10px rgba(16, 185, 129, 0.4)'] }}
+        transition={{ duration: 3, repeat: Infinity }}
+      />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <BarChart3 className={size === 'large' ? 'w-7 h-7' : 'w-5 h-5'} />
+      </div>
+    </motion.div>
+  );
+}
+
+// ============================================
+// Header Component
+// ============================================
+function Header({ onReset, hasData, viewMode, onViewModeChange }: {
+  onReset?: () => void;
+  hasData: boolean;
+  viewMode: 'single' | 'dashboard';
+  onViewModeChange: (mode: 'single' | 'dashboard') => void;
+}) {
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-xl">
+      <div className="container flex h-16 items-center justify-between px-4">
+        <div className="flex items-center gap-4">
+          <Logo />
+          <div>
+            <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 bg-clip-text text-transparent">Business Intelligence AI</h1>
+            <p className="text-xs text-muted-foreground hidden sm:block">Professional Website & YouTube Analysis</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {hasData && (
+            <>
+              <div className="hidden sm:flex items-center gap-1 mr-2 p-1 bg-muted rounded-lg">
+                <Button variant={viewMode === 'single' ? 'secondary' : 'ghost'} size="sm" onClick={() => onViewModeChange('single')} className="gap-2"><EyeIcon className="w-4 h-4" />Single</Button>
+                <Button variant={viewMode === 'dashboard' ? 'secondary' : 'ghost'} size="sm" onClick={() => onViewModeChange('dashboard')} className="gap-2"><LayoutDashboard className="w-4 h-4" />Dashboard</Button>
+              </div>
+              {onReset && <Button variant="outline" size="sm" onClick={onReset} className="gap-2"><RotateCcw className="w-4 h-4" /><span className="hidden sm:inline">New</span></Button>}
+            </>
+          )}
+          <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="relative">
+            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          </Button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// ============================================
+// Input Tabs Component
+// ============================================
+function InputTabs({ activeTab, onTabChange }: { activeTab: InputMethod; onTabChange: (tab: InputMethod) => void }) {
+  const tabs: { id: InputMethod; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+    { id: 'file', label: 'Upload File', icon: FileSpreadsheet },
+    { id: 'paste', label: 'Paste Data', icon: ClipboardPaste },
+    { id: 'url', label: 'Website URL', icon: Globe },
+    { id: 'youtube', label: 'YouTube', icon: Youtube },
+  ];
+
+  return (
+    <div className="flex justify-center mb-8">
+      <div className="inline-flex p-1 bg-muted rounded-xl">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all',
+                activeTab === tab.id
+                  ? 'bg-background shadow-sm text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              <span className="hidden sm:inline">{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// File Upload Zone
+// ============================================
+function FileUploadZone({ onUpload, isLoading }: { onUpload: (file: File) => void; isLoading: boolean }) {
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDrag = useCallback((e: React.DragEvent, over: boolean) => {
+    e.preventDefault();
+    setIsDragging(over);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file?.name.match(/\.(xlsx|xls|csv)$/i)) {
+      onUpload(file);
+    } else {
+      toast({ title: 'Invalid file', description: 'Please upload Excel or CSV file', variant: 'destructive' });
+    }
+  }, [onUpload]);
+
+  return (
+    <motion.div
+      className={cn(
+        'relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all overflow-hidden',
+        isDragging ? 'border-emerald-500 bg-emerald-500/10 scale-[1.02]' : 'border-border hover:border-emerald-400 hover:bg-emerald-500/5',
+        isLoading && 'pointer-events-none opacity-60'
+      )}
+      onDragOver={(e) => handleDrag(e, true)}
+      onDragLeave={(e) => handleDrag(e, false)}
+      onDrop={handleDrop}
+      onClick={() => document.getElementById('file-input')?.click()}
+      whileHover={{ scale: isLoading ? 1 : 1.005 }}
+    >
+      <motion.div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-cyan-500/5 to-violet-500/5" animate={{ opacity: isDragging ? 1 : 0 }} />
+      <input id="file-input" type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
+      <motion.div animate={{ y: isDragging ? -10 : 0 }} className="relative z-10">
+        {isLoading ? (
+          <>
+            <Loader2 className="w-16 h-16 mx-auto text-emerald-500 animate-spin mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Processing your data...</h3>
+            <p className="text-muted-foreground">Analyzing structure and generating insights</p>
+          </>
+        ) : (
+          <>
+            <Upload className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-xl font-semibold mb-2">{isDragging ? 'Drop to upload!' : 'Drop your data file here'}</h3>
+            <p className="text-muted-foreground mb-4">or click to browse your files</p>
+            <div className="flex justify-center gap-2">
+              <Badge variant="secondary" className="gap-1 px-3 py-1"><FileSpreadsheet className="w-3 h-3" /> Excel</Badge>
+              <Badge variant="secondary" className="gap-1 px-3 py-1"><FileText className="w-3 h-3" /> CSV</Badge>
+            </div>
+          </>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ============================================
+// Paste Data Input
+// ============================================
+function PasteDataInput({ onSubmit, isLoading }: { onSubmit: (data: string) => void; isLoading: boolean }) {
+  const [value, setValue] = useState('');
+
+  const handleSubmit = () => {
+    if (!value.trim()) {
+      toast({ title: 'No data', description: 'Please paste some data', variant: 'destructive' });
+      return;
+    }
+    onSubmit(value);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <Textarea
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Paste your data here...
+
+Supported formats:
+• CSV (comma-separated)
+• TSV (tab-separated)
+• Custom delimiter (semicolon, pipe, etc.)
+
+Example:
+Name,Sales,Region
+Product A,1500,North
+Product B,2300,South
+Product C,1800,East"
+          className="min-h-[250px] border-0 resize-none font-mono text-sm"
+          disabled={isLoading}
+        />
+      </div>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {value.split('\n').filter(l => l.trim()).length} lines detected
+        </p>
+        <Button onClick={handleSubmit} disabled={isLoading || !value.trim()} className="gap-2 bg-gradient-to-r from-emerald-500 to-cyan-500">
+          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+          Analyze Data
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// URL Input
+// ============================================
+function URLInput({ onSubmit, isLoading }: { onSubmit: (url: string) => void; isLoading: boolean }) {
+  const [url, setUrl] = useState('');
+
+  const handleSubmit = () => {
+    if (!url.trim()) {
+      toast({ title: 'No URL', description: 'Please enter a website URL', variant: 'destructive' });
+      return;
+    }
+    try {
+      new URL(url);
+      onSubmit(url);
+    } catch {
+      toast({ title: 'Invalid URL', description: 'Please enter a valid URL (e.g., https://example.com)', variant: 'destructive' });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Globe className="w-5 h-5 text-emerald-500" />
+            Website Business Intelligence
+          </CardTitle>
+          <CardDescription>Enter any website URL to generate a comprehensive business analysis report</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://example.com"
+                className="pl-9"
+                disabled={isLoading}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+              />
+            </div>
+            <Button onClick={handleSubmit} disabled={isLoading || !url.trim()} className="gap-2 bg-gradient-to-r from-emerald-500 to-cyan-500">
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              Analyze
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            {[
+              { icon: DollarSign, label: 'Revenue Est.' },
+              { icon: TrendingUp, label: 'Traffic Analysis' },
+              { icon: Target, label: 'SEO Insights' },
+              { icon: Rocket, label: 'Growth Plans' },
+            ].map((item, i) => (
+              <div key={i} className="p-3 rounded-lg bg-muted/50">
+                <item.icon className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                <p className="text-xs font-medium">{item.label}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ============================================
+// YouTube Input
+// ============================================
+function YouTubeInput({ onSubmit, isLoading }: { onSubmit: (url: string) => void; isLoading: boolean }) {
+  const [url, setUrl] = useState('');
+
+  const handleSubmit = () => {
+    if (!url.trim()) {
+      toast({ title: 'No URL', description: 'Please enter a YouTube URL', variant: 'destructive' });
+      return;
+    }
+    const youtubePatterns = [
+      /^(https?:\/\/)?(www\.)?youtube\.com\/watch\?v=/,
+      /^(https?:\/\/)?(www\.)?youtu\.be\//,
+      /^(https?:\/\/)?(m\.)?youtube\.com\/watch\?v=/,
+      /^(https?:\/\/)?(www\.)?youtube\.com\/shorts\//,
+    ];
+    if (!youtubePatterns.some(p => p.test(url))) {
+      toast({ title: 'Invalid YouTube URL', description: 'Please enter a valid YouTube video URL', variant: 'destructive' });
+      return;
+    }
+    onSubmit(url);
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Youtube className="w-5 h-5 text-red-500" />
+            YouTube Business Intelligence
+          </CardTitle>
+          <CardDescription>Get comprehensive business analysis, revenue estimates, and growth strategies</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="pl-9"
+                disabled={isLoading}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+              />
+            </div>
+            <Button onClick={handleSubmit} disabled={isLoading || !url.trim()} className="gap-2 bg-gradient-to-r from-red-500 to-rose-500">
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              Analyze
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            {[
+              { icon: DollarSign, label: 'Revenue Est.' },
+              { icon: Users, label: 'Audience Data' },
+              { icon: Lightbulb, label: 'Growth Tips' },
+              { icon: Award, label: 'Premium Insights' },
+            ].map((item, i) => (
+              <div key={i} className="p-3 rounded-lg bg-muted/50">
+                <item.icon className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                <p className="text-xs font-medium">{item.label}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ============================================
+// Website Analysis Report
+// ============================================
+function WebsiteAnalysisReport({ data }: { data: URLAnalysisData }) {
+  const sections = data.sections;
+  const colors = ['#10b981', '#0ea5e9', '#f97316', '#8b5cf6', '#f43f5e', '#eab308'];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">{sections.basicOverview.brandName || data.title}</h2>
+          <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+            <Globe className="w-4 h-4" /> {data.domain}
+            <span className="mx-2">•</span>
+            <a href={data.url} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline flex items-center gap-1">
+              Visit <ExternalLink className="w-3 h-3" />
+            </a>
+          </p>
+        </div>
+        <Badge variant="outline" className="text-xs">{sections.historyBackground?.businessModel || 'Website'}</Badge>
+      </div>
+
+      {/* SECTION A - Basic Overview */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Building className="w-4 h-4 text-emerald-500" />Section A – Basic Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div><p className="text-xs text-muted-foreground">Brand Name</p><p className="font-medium">{sections.basicOverview?.brandName || 'N/A'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Category</p><p className="font-medium">{sections.basicOverview?.category || 'N/A'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Target Audience</p><p className="font-medium">{sections.basicOverview?.targetAudience || 'N/A'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Country Focus</p><p className="font-medium">{sections.basicOverview?.countryFocus || 'Global'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Language</p><p className="font-medium">{sections.basicOverview?.language || 'English'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Word Count</p><p className="font-medium">{data.wordCount?.toLocaleString() || 'N/A'}</p></div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION B - History & Background */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Clock className="w-4 h-4 text-blue-500" />Section B – History & Background</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div><p className="text-xs text-muted-foreground">Founded</p><p className="font-medium">{sections.historyBackground?.foundingYear || 'Unknown'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Business Model</p><p className="font-medium">{sections.historyBackground?.businessModel || 'N/A'}</p></div>
+          </div>
+          <div><p className="text-xs text-muted-foreground">Background</p><p className="text-sm mt-1">{sections.historyBackground?.background || 'No background information available.'}</p></div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION C - Traffic & Reach */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="w-4 h-4 text-green-500" />Section C – Traffic & Reach Analysis</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-4 bg-muted/50 rounded-lg text-center">
+              <p className="text-xs text-muted-foreground">Monthly Traffic</p>
+              <p className="text-lg font-bold text-emerald-600">{sections.trafficReach?.estimatedMonthlyTraffic || 'N/A'}</p>
+            </div>
+            <div className="p-4 bg-muted/50 rounded-lg text-center">
+              <p className="text-xs text-muted-foreground">Daily Visitors</p>
+              <p className="text-lg font-bold text-blue-600">{sections.trafficReach?.estimatedDailyVisitors || 'N/A'}</p>
+            </div>
+          </div>
+          
+          {sections.trafficReach?.trafficSources && sections.trafficReach.trafficSources.length > 0 && (
+            <div>
+              <p className="text-sm font-medium mb-2">Traffic Sources</p>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsBarChart data={sections.trafficReach.trafficSources}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Bar dataKey="percentage" fill={colors[0]} radius={[4, 4, 0, 0]} />
+                  </RechartsBarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm font-medium mb-2">Top Countries</p>
+              <div className="flex flex-wrap gap-2">
+                {sections.trafficReach?.topGeographicCountries?.map((country, i) => (
+                  <Badge key={i} variant="secondary">{country}</Badge>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-2">Device Split</p>
+              <div className="flex gap-4">
+                {sections.trafficReach?.deviceSplit?.map((device, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    {device.device === 'Mobile' ? <Smartphone className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
+                    <span className="text-sm">{device.device}: {device.percentage}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground italic">(Estimated / AI-based approximation)</p>
+        </CardContent>
+      </Card>
+
+      {/* SECTION D - Revenue & Earnings */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><DollarSign className="w-4 h-4 text-yellow-500" />Section D – Revenue & Earnings Estimation</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 rounded-lg">
+              <p className="text-xs text-muted-foreground">Monthly Revenue</p>
+              <p className="text-xl font-bold text-emerald-600">{sections.revenueEarnings?.estimatedMonthlyRevenue || 'N/A'}</p>
+            </div>
+            <div className="p-4 bg-gradient-to-br from-blue-500/10 to-violet-500/10 rounded-lg">
+              <p className="text-xs text-muted-foreground">Yearly Revenue</p>
+              <p className="text-xl font-bold text-blue-600">{sections.revenueEarnings?.estimatedYearlyRevenue || 'N/A'}</p>
+            </div>
+          </div>
+          
+          <div>
+            <p className="text-sm font-medium mb-2">Monetization Methods</p>
+            <div className="flex flex-wrap gap-2">
+              {sections.revenueEarnings?.monetizationMethods?.map((method, i) => (
+                <Badge key={i} variant="outline">{method}</Badge>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium mb-2">Revenue Logic Explanation</p>
+            <p className="text-sm text-muted-foreground">{sections.revenueEarnings?.revenueLogicExplanation || 'Based on traffic estimates, industry benchmarks, and monetization methods.'}</p>
+          </div>
+          <p className="text-xs text-muted-foreground italic">(Estimated / AI-based approximation)</p>
+        </CardContent>
+      </Card>
+
+      {/* SECTION E - Technology Stack */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Monitor className="w-4 h-4 text-purple-500" />Section E – Technology & Platform Stack</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div><p className="text-xs text-muted-foreground">CMS/Framework</p><p className="font-medium">{sections.technologyStack?.cmsOrFramework || 'Unknown'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Hosting/CDN</p><p className="font-medium">{sections.technologyStack?.hostingCdn || 'Unknown'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Performance</p><Badge variant="outline">{sections.technologyStack?.performanceQuality || 'N/A'}</Badge></div>
+            <div><p className="text-xs text-muted-foreground">Mobile Friendly</p><Badge variant="outline">{sections.technologyStack?.mobileFriendliness || 'N/A'}</Badge></div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION F - SEO & Visibility */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Target className="w-4 h-4 text-orange-500" />Section F – SEO & Visibility Analysis</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div><p className="text-xs text-muted-foreground">Keyword Opportunity</p><Badge>{sections.seoVisibility?.keywordOpportunityLevel || 'N/A'}</Badge></div>
+            <div><p className="text-xs text-muted-foreground">Content Depth</p><Badge variant="secondary">{sections.seoVisibility?.contentDepthLevel || 'N/A'}</Badge></div>
+            <div><p className="text-xs text-muted-foreground">Backlink Strength</p><Badge variant="outline">{sections.seoVisibility?.backlinkProfileStrength || 'N/A'}</Badge></div>
+            <div><p className="text-xs text-muted-foreground">Brand Visibility</p><p className="font-medium">{sections.seoVisibility?.brandSearchVisibility || 'N/A'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Growth Potential</p>
+              <div className="flex items-center gap-2">
+                <Progress value={(sections.seoVisibility?.growthPotentialScore || 5) * 10} className="w-20" />
+                <span className="font-bold">{sections.seoVisibility?.growthPotentialScore || 5}/10</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION G - Content & Engagement */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><FileText className="w-4 h-4 text-teal-500" />Section G – Content & Engagement Analysis</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div><p className="text-xs text-muted-foreground">Content Quality</p><Badge>{sections.contentEngagement?.contentQuality || 'N/A'}</Badge></div>
+            <div><p className="text-xs text-muted-foreground">Content Strategy</p><p className="font-medium">{sections.contentEngagement?.contentStrategy || 'N/A'}</p></div>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Engagement Drivers</p>
+            <div className="flex flex-wrap gap-2">
+              {sections.contentEngagement?.engagementDrivers?.map((driver, i) => (
+                <Badge key={i} variant="secondary">{driver}</Badge>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION H - Competitive Positioning */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Shield className="w-4 h-4 text-red-500" />Section H – Competitive Positioning</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div><p className="text-xs text-muted-foreground">Market Position</p><Badge>{sections.competitivePositioning?.marketPosition || 'N/A'}</Badge></div>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Competitor Types</p>
+            <div className="flex flex-wrap gap-2">
+              {sections.competitivePositioning?.competitorTypes?.map((comp, i) => (
+                <Badge key={i} variant="outline">{comp}</Badge>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Differentiators</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              {sections.competitivePositioning?.differentiators?.map((diff, i) => (
+                <li key={i}>{diff}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Market Gap Opportunities</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              {sections.competitivePositioning?.marketGapOpportunities?.map((gap, i) => (
+                <li key={i}>{gap}</li>
+              ))}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION I - Chart Data */}
+      {sections.chartData && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2"><BarChart3 className="w-4 h-4 text-indigo-500" />Section I – Visual Data & Charts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {sections.chartData.trafficSourceDistribution && sections.chartData.trafficSourceDistribution.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Traffic Source Distribution</p>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsPieChart>
+                        <Pie data={sections.chartData.trafficSourceDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60}>
+                          {sections.chartData.trafficSourceDistribution.map((_, i) => (
+                            <Cell key={i} fill={colors[i % colors.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </RechartsPieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+              
+              {sections.chartData.countryTrafficDistribution && sections.chartData.countryTrafficDistribution.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Country Traffic Distribution</p>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsBarChart data={sections.chartData.countryTrafficDistribution}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+                        <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} />
+                        <Tooltip />
+                        <Bar dataKey="value" fill={colors[1]} />
+                      </RechartsBarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {sections.chartData.growthTrend && sections.chartData.growthTrend.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Growth Trend</p>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsLineChart data={sections.chartData.growthTrend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+                        <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="value" stroke={colors[2]} strokeWidth={2} />
+                      </RechartsLineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {sections.chartData.revenueSplit && sections.chartData.revenueSplit.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Revenue Split</p>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsPieChart>
+                        <Pie data={sections.chartData.revenueSplit} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60}>
+                          {sections.chartData.revenueSplit.map((_, i) => (
+                            <Cell key={i} fill={colors[i % colors.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </RechartsPieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* SECTION J - Growth Opportunities */}
+      <Card className="border-emerald-200 dark:border-emerald-800">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Rocket className="w-4 h-4 text-emerald-500" />Section J – Growth Opportunities</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <p className="text-sm font-medium mb-2">Traffic Growth Strategies</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              {sections.growthOpportunities?.trafficGrowthStrategies?.map((strategy, i) => (
+                <li key={i}>{strategy}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Monetization Expansion</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              {sections.growthOpportunities?.monetizationExpansion?.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">AI & Automation Opportunities</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              {sections.growthOpportunities?.aiAutomationOpportunities?.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION K - Risks & Limitations */}
+      <Card className="border-red-200 dark:border-red-800">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><AlertOctagon className="w-4 h-4 text-red-500" />Section K – Risks & Limitations</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <p className="text-sm font-medium mb-2">Dependency Risks</p>
+            <div className="flex flex-wrap gap-2">
+              {sections.risksLimitations?.dependencyRisks?.map((risk, i) => (
+                <Badge key={i} variant="destructive">{risk}</Badge>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Content Saturation Risk</p>
+            <p className="text-sm text-muted-foreground">{sections.risksLimitations?.contentSaturationRisk || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Technical Scaling Risks</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              {sections.risksLimitations?.technicalScalingRisks?.map((risk, i) => (
+                <li key={i}>{risk}</li>
+              ))}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION L - Roadmap */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Calendar className="w-4 h-4 text-blue-500" />Section L – Actionable Improvement Roadmap</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <p className="font-medium text-sm mb-2 flex items-center gap-2"><Clock className="w-4 h-4" />Short Term (0-30 days)</p>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                {sections.roadmap?.shortTerm?.map((item, i) => (
+                  <li key={i}>• {item}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <p className="font-medium text-sm mb-2 flex items-center gap-2"><Calendar className="w-4 h-4" />Medium Term (1-3 months)</p>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                {sections.roadmap?.mediumTerm?.map((item, i) => (
+                  <li key={i}>• {item}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <p className="font-medium text-sm mb-2 flex items-center gap-2"><TrendingUp className="w-4 h-4" />Long Term (6-12 months)</p>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                {sections.roadmap?.longTerm?.map((item, i) => (
+                  <li key={i}>• {item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION M - Investor Snapshot */}
+      <Card className="border-violet-200 dark:border-violet-800 bg-gradient-to-br from-violet-500/5 to-purple-500/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Briefcase className="w-4 h-4 text-violet-500" />Section M – Investor / Business Snapshot</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+            <div><p className="text-xs text-muted-foreground">Attractiveness</p><p className="text-sm font-medium">{sections.investorSnapshot?.businessAttractiveness || 'N/A'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Scalability</p><p className="text-sm font-medium">{sections.investorSnapshot?.scalability || 'N/A'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Monetization</p><p className="text-sm font-medium">{sections.investorSnapshot?.monetizationStrength || 'N/A'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Defensibility</p><p className="text-sm font-medium">{sections.investorSnapshot?.defensibility || 'N/A'}</p></div>
+            <div className="col-span-2">
+              <p className="text-xs text-muted-foreground">Overall Potential Score</p>
+              <div className="flex items-center gap-2 mt-1">
+                <Progress value={(sections.investorSnapshot?.overallPotentialScore || 5) * 10} className="flex-1" />
+                <span className="text-2xl font-bold text-violet-600">{sections.investorSnapshot?.overallPotentialScore || 5}/10</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION N - Premium Insights */}
+      <Card className="border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Sparkles className="w-4 h-4 text-amber-500" />Section N – Premium Insight Layer</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <p className="text-sm font-medium mb-2">Hidden Monetization Angles</p>
+            <div className="flex flex-wrap gap-2">
+              {sections.premiumInsights?.hiddenMonetizationAngles?.map((item, i) => (
+                <Badge key={i} className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100">{item}</Badge>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Untapped Traffic Channels</p>
+            <div className="flex flex-wrap gap-2">
+              {sections.premiumInsights?.untappedTrafficChannels?.map((item, i) => (
+                <Badge key={i} variant="outline">{item}</Badge>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">AI-Driven Opportunities</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              {sections.premiumInsights?.aiPersonalizationOpportunities?.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Potential SaaS Features</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              {sections.premiumInsights?.potentialSaaSFeatures?.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION O - Final Summary */}
+      <Card className="border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-500/5 to-teal-500/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Award className="w-4 h-4 text-emerald-500" />Section O – Final Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm leading-relaxed">{sections.finalSummary || 'Analysis complete.'}</p>
+          <p className="text-xs text-muted-foreground mt-4">Analysis Date: {new Date(data.analysisDate).toLocaleString()}</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ============================================
+// YouTube Analysis Report
+// ============================================
+function YouTubeAnalysisReport({ data }: { data: YouTubeAnalysisData }) {
+  const sections = data.sections;
+  const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#0ea5e9', '#8b5cf6'];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex gap-4">
+          <img src={data.thumbnail} alt={data.title} className="w-32 h-20 rounded-lg object-cover" />
+          <div>
+            <h2 className="text-xl font-bold line-clamp-2">{data.title}</h2>
+            <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+              <Youtube className="w-4 h-4 text-red-500" /> {data.channel}
+            </p>
+            <a href={data.url} target="_blank" rel="noopener noreferrer" className="text-sm text-red-500 hover:underline flex items-center gap-1 mt-1">
+              Watch Video <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        </div>
+        {data.recommendation && (
+          <Badge className="bg-gradient-to-r from-red-500 to-rose-500">{data.recommendation}</Badge>
+        )}
+      </div>
+
+      {/* Video Summary */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Video Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm leading-relaxed">{data.summary}</p>
+        </CardContent>
+      </Card>
+
+      {/* SECTION A - Basic Overview */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Youtube className="w-4 h-4 text-red-500" />Section A – Basic Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div><p className="text-xs text-muted-foreground">Channel</p><p className="font-medium">{sections.basicOverview?.channelName || data.channel}</p></div>
+            <div><p className="text-xs text-muted-foreground">Category</p><p className="font-medium">{sections.basicOverview?.category || 'N/A'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Target Audience</p><p className="font-medium">{sections.basicOverview?.targetAudience || 'N/A'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Language</p><p className="font-medium">{sections.basicOverview?.contentLanguage || 'English'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Upload Date</p><p className="font-medium">{sections.basicOverview?.uploadDate || 'N/A'}</p></div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION B - History & Background */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Clock className="w-4 h-4 text-blue-500" />Section B – History & Background</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div><p className="text-xs text-muted-foreground">Channel Created</p><p className="font-medium">{sections.historyBackground?.channelCreationYear || 'Unknown'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Content Type</p><p className="font-medium">{sections.historyBackground?.contentType || 'N/A'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Publishing Style</p><p className="font-medium">{sections.historyBackground?.publishingStyle || 'N/A'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Channel Focus</p><p className="font-medium">{sections.historyBackground?.channelFocus || 'N/A'}</p></div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION C - Traffic & Reach */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Users className="w-4 h-4 text-green-500" />Section C – Traffic & Reach Analysis</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-4 bg-muted/50 rounded-lg text-center">
+              <p className="text-xs text-muted-foreground">Subscribers</p>
+              <p className="text-lg font-bold text-red-600">{sections.trafficReach?.totalSubscribers || 'N/A'}</p>
+            </div>
+            <div className="p-4 bg-muted/50 rounded-lg text-center">
+              <p className="text-xs text-muted-foreground">Avg Views/Video</p>
+              <p className="text-lg font-bold text-blue-600">{sections.trafficReach?.averageViewsPerVideo || 'N/A'}</p>
+            </div>
+            <div className="p-4 bg-muted/50 rounded-lg text-center">
+              <p className="text-xs text-muted-foreground">Upload Frequency</p>
+              <p className="text-lg font-bold text-purple-600">{sections.trafficReach?.uploadFrequency || 'N/A'}</p>
+            </div>
+            <div className="p-4 bg-muted/50 rounded-lg text-center">
+              <p className="text-xs text-muted-foreground">Monthly Views</p>
+              <p className="text-lg font-bold text-emerald-600">{sections.trafficReach?.estimatedMonthlyViews || 'N/A'}</p>
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Audience Geography</p>
+            <div className="flex flex-wrap gap-2">
+              {sections.trafficReach?.audienceGeography?.map((country, i) => (
+                <Badge key={i} variant="secondary">{country}</Badge>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground italic">(Estimated / AI-based approximation)</p>
+        </CardContent>
+      </Card>
+
+      {/* SECTION D - Revenue & Earnings */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><DollarSign className="w-4 h-4 text-yellow-500" />Section D – Revenue & Earnings Estimation</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-gradient-to-br from-red-500/10 to-orange-500/10 rounded-lg">
+              <p className="text-xs text-muted-foreground">RPM Range</p>
+              <p className="text-xl font-bold text-red-600">{sections.revenueEarnings?.estimatedRpmRange || 'N/A'}</p>
+            </div>
+            <div className="p-4 bg-gradient-to-br from-amber-500/10 to-yellow-500/10 rounded-lg">
+              <p className="text-xs text-muted-foreground">AdSense Monthly</p>
+              <p className="text-xl font-bold text-amber-600">{sections.revenueEarnings?.estimatedAdSenseMonthly || 'N/A'}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div><p className="text-xs text-muted-foreground">Sponsorship Potential</p><p className="font-medium">{sections.revenueEarnings?.sponsorshipPotential || 'N/A'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Affiliate Revenue</p><p className="font-medium">{sections.revenueEarnings?.affiliateRevenuePotential || 'N/A'}</p></div>
+          </div>
+          <p className="text-xs text-muted-foreground italic">(Estimated / AI-based approximation)</p>
+        </CardContent>
+      </Card>
+
+      {/* SECTION G - Content & Engagement */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><ThumbsUp className="w-4 h-4 text-teal-500" />Section G – Content & Engagement Analysis</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div><p className="text-xs text-muted-foreground">Hook Quality</p><Badge>{sections.contentEngagement?.hookQuality || 'N/A'}</Badge></div>
+            <div><p className="text-xs text-muted-foreground">Watch Time Potential</p><Badge variant="secondary">{sections.contentEngagement?.watchTimePotential || 'N/A'}</Badge></div>
+            <div><p className="text-xs text-muted-foreground">Thumbnail/Title</p><Badge variant="outline">{sections.contentEngagement?.thumbnailTitleEffectiveness || 'N/A'}</Badge></div>
+            <div><p className="text-xs text-muted-foreground">Retention</p><Badge variant="outline">{sections.contentEngagement?.audienceRetentionPotential || 'N/A'}</Badge></div>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Engagement Drivers</p>
+            <div className="flex flex-wrap gap-2">
+              {sections.contentEngagement?.engagementDrivers?.map((driver, i) => (
+                <Badge key={i} variant="secondary">{driver}</Badge>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quality Assessment */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Quality Assessment</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-3 rounded-lg bg-muted/50 text-center">
+              <p className="text-xs text-muted-foreground mb-1">Production</p>
+              <Badge variant="outline">{data.quality?.production || 'Standard'}</Badge>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/50 text-center">
+              <p className="text-xs text-muted-foreground mb-1">Audio</p>
+              <Badge variant="outline">{data.quality?.audio || 'Good'}</Badge>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/50 text-center">
+              <p className="text-xs text-muted-foreground mb-1">Visuals</p>
+              <Badge variant="outline">{data.quality?.visuals || 'Standard'}</Badge>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/50 text-center">
+              <p className="text-xs text-muted-foreground mb-1">Pacing</p>
+              <Badge variant="outline">{data.quality?.pacing || 'Moderate'}</Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Key Topics & Keywords */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2"><Tag className="w-4 h-4" />Key Topics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {data.keyTopics.map((topic, i) => (
+                <Badge key={i} variant="secondary">{topic}</Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2"><Hash className="w-4 h-4" />Hashtags</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {data.hashtags.map((tag, i) => (
+                <Badge key={i} className="bg-red-500/10 text-red-600">{tag}</Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Keywords */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2"><Tag className="w-4 h-4" />Keywords</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {data.keywords.map((kw, i) => (
+              <Badge key={i} variant="outline">{kw}</Badge>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION I - Charts */}
+      {sections.chartData && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2"><BarChart3 className="w-4 h-4 text-indigo-500" />Section I – Visual Data & Charts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {sections.chartData.engagementTrend && sections.chartData.engagementTrend.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Engagement Trend</p>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsLineChart data={sections.chartData.engagementTrend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+                        <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="views" stroke={colors[0]} strokeWidth={2} />
+                        <Line type="monotone" dataKey="subscribers" stroke={colors[3]} strokeWidth={2} />
+                      </RechartsLineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {sections.chartData.revenueSplit && sections.chartData.revenueSplit.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Revenue Split</p>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsPieChart>
+                        <Pie data={sections.chartData.revenueSplit} dataKey="percentage" nameKey="source" cx="50%" cy="50%" outerRadius={60}>
+                          {sections.chartData.revenueSplit.map((_, i) => (
+                            <Cell key={i} fill={colors[i % colors.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </RechartsPieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Chapters */}
+      {data.chapters && data.chapters.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2"><Clock className="w-4 h-4" />Chapters</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {data.chapters.map((chapter, i) => (
+                <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
+                  <Badge variant="outline" className="shrink-0">{i + 1}</Badge>
+                  <div>
+                    <p className="font-medium text-sm">{chapter.title}</p>
+                    <p className="text-xs text-muted-foreground">{chapter.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* SECTION J - Growth Opportunities */}
+      <Card className="border-emerald-200 dark:border-emerald-800">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Rocket className="w-4 h-4 text-emerald-500" />Section J – Growth Opportunities</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <p className="text-sm font-medium mb-2">Traffic Growth Strategies</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              {sections.growthOpportunities?.trafficGrowthStrategies?.map((strategy, i) => (
+                <li key={i}>{strategy}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Monetization Expansion</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              {sections.growthOpportunities?.monetizationExpansion?.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION M - Investor Snapshot */}
+      <Card className="border-violet-200 dark:border-violet-800 bg-gradient-to-br from-violet-500/5 to-purple-500/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Briefcase className="w-4 h-4 text-violet-500" />Section M – Investor Snapshot</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+            <div><p className="text-xs text-muted-foreground">Attractiveness</p><p className="text-sm font-medium">{sections.investorSnapshot?.channelAttractiveness || 'N/A'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Scalability</p><p className="text-sm font-medium">{sections.investorSnapshot?.scalability || 'N/A'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Monetization</p><p className="text-sm font-medium">{sections.investorSnapshot?.monetizationStrength || 'N/A'}</p></div>
+            <div className="col-span-2 md:col-span-3">
+              <p className="text-xs text-muted-foreground">Overall Potential Score</p>
+              <div className="flex items-center gap-2 mt-1">
+                <Progress value={(sections.investorSnapshot?.overallPotentialScore || 5) * 10} className="flex-1" />
+                <span className="text-2xl font-bold text-violet-600">{sections.investorSnapshot?.overallPotentialScore || 5}/10</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION N - Premium Insights */}
+      <Card className="border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Sparkles className="w-4 h-4 text-amber-500" />Section N – Premium Insight Layer</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <p className="text-sm font-medium mb-2">Hidden Monetization Angles</p>
+            <div className="flex flex-wrap gap-2">
+              {sections.premiumInsights?.hiddenMonetizationAngles?.map((item, i) => (
+                <Badge key={i} className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100">{item}</Badge>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">AI Content Opportunities</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              {sections.premiumInsights?.aiContentOpportunities?.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Potential Products/Services</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              {sections.premiumInsights?.potentialProductsOrServices?.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION O - Final Summary */}
+      <Card className="border-red-200 dark:border-red-800 bg-gradient-to-br from-red-500/5 to-rose-500/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Award className="w-4 h-4 text-red-500" />Section O – Final Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm leading-relaxed">{sections.finalSummary || 'Analysis complete.'}</p>
+          <p className="text-xs text-muted-foreground mt-4">Analysis Date: {new Date(data.analysisDate).toLocaleString()}</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ============================================
+// Data Table Component
+// ============================================
+function DataTable({ data, columns }: { data: DataRow[]; columns: ColumnInfo[] }) {
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<{ col: string; dir: 'asc' | 'desc' } | null>(null);
+  const [page, setPage] = useState(0);
+  const pageSize = 20;
+
+  const filtered = useMemo(() => {
+    if (!search) return data;
+    return data.filter(row => Object.values(row).some(v => String(v).toLowerCase().includes(search.toLowerCase())));
+  }, [data, search]);
+
+  const sorted = useMemo(() => {
+    if (!sort) return filtered;
+    return [...filtered].sort((a, b) => {
+      const av = a[sort.col], bv = b[sort.col];
+      if (av === null) return 1;
+      if (bv === null) return -1;
+      const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+      return sort.dir === 'asc' ? cmp : -cmp;
+    });
+  }, [filtered, sort]);
+
+  const paged = sorted.slice(page * pageSize, (page + 1) * pageSize);
+  const totalPages = Math.ceil(sorted.length / pageSize);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Search data..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        </div>
+        <Badge variant="secondary">{formatNumber(filtered.length)} rows</Badge>
+      </div>
+      <div className="rounded-xl border overflow-hidden bg-card">
+        <ScrollArea className="h-[350px]">
+          <div className="min-w-max">
+            <div className="sticky top-0 bg-muted/95 backdrop-blur-sm border-b z-10 flex">
+              {columns.map((col) => (
+                <button key={col.name} onClick={() => setSort(s => s?.col === col.name ? { col: col.name, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { col: col.name, dir: 'asc' })}
+                  className="flex items-center gap-2 px-4 py-3 text-left text-sm font-medium hover:bg-muted/50 min-w-[140px] border-r last:border-r-0">
+                  <span className="truncate">{col.name}</span>
+                  <div className="flex flex-col shrink-0">
+                    <ChevronUp className={cn('w-3 h-3 -mb-1', sort?.col === col.name && sort.dir === 'asc' && 'text-emerald-500')} />
+                    <ChevronDown className={cn('w-3 h-3 -mt-1', sort?.col === col.name && sort.dir === 'desc' && 'text-emerald-500')} />
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="divide-y">
+              {paged.map((row, i) => (
+                <div key={i} className="flex hover:bg-muted/30">
+                  {columns.map((col) => (
+                    <div key={col.name} className={cn('px-4 py-2.5 text-sm min-w-[140px] border-r last:border-r-0 truncate', col.type === 'numeric' && 'text-right font-mono')}>
+                      {row[col.name] ?? <span className="text-muted-foreground/50">—</span>}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </ScrollArea>
+      </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
+          <span className="text-sm text-muted-foreground">Page {page + 1} of {totalPages}</span>
+          <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// Chart Component
+// ============================================
+function Chart({ type, data, columns, config, height = 400 }: { type: ChartType; data: DataRow[]; columns: ColumnInfo[]; config: ChartConfig; height?: number }) {
+  const colors = config.colorPalette || COLOR_PALETTES.default;
+  const numericCols = columns.filter(c => c.type === 'numeric');
+  const categoricalCols = columns.filter(c => c.type === 'categorical');
+
+  const getChartData = () => {
+    const xCol = config.xAxis || categoricalCols[0]?.name || columns[0]?.name;
+    const yCol = config.yAxis || numericCols[0]?.name;
+    const catCol = config.category || categoricalCols[0]?.name;
+    const valCol = config.value || numericCols[0]?.name;
+
+    switch (type) {
+      case 'pie':
+      case 'donut': {
+        if (!catCol || !valCol) return [];
+        const grouped = data.reduce((acc, row) => {
+          const key = String(row[catCol] || 'Other');
+          const val = Number(row[valCol]) || 0;
+          acc[key] = (acc[key] || 0) + val;
+          return acc;
+        }, {} as Record<string, number>);
+        return Object.entries(grouped).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, value]) => ({ name, value }));
+      }
+      case 'line':
+      case 'area':
+      case 'bar': {
+        if (!xCol || !yCol) return [];
+        const grouped = data.reduce((acc, row) => {
+          const key = String(row[xCol] || 'Other');
+          const val = Number(row[yCol]) || 0;
+          if (!acc[key]) acc[key] = { sum: 0, count: 0 };
+          acc[key].sum += val;
+          acc[key].count += 1;
+          return acc;
+        }, {} as Record<string, { sum: number; count: number }>);
+        return Object.entries(grouped).slice(0, 50).map(([name, stats]) => ({ name: name.slice(0, 20), value: stats.sum }));
+      }
+      case 'scatter': {
+        const x = numericCols[0]?.name, y = numericCols[1]?.name;
+        if (!x || !y) return [];
+        return data.filter(r => !isNaN(Number(r[x])) && !isNaN(Number(r[y]))).slice(0, 200).map(r => ({ x: Number(r[x]), y: Number(r[y]) }));
+      }
+      default:
+        return data.slice(0, 50);
+    }
+  };
+
+  const chartData = getChartData();
+
+  if (!chartData.length) {
+    return (
+      <div className="flex items-center justify-center text-muted-foreground" style={{ height }}>
+        <div className="text-center">
+          <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+          <p>No data available</p>
+        </div>
+      </div>
+    );
+  }
+
+  const tooltipStyle = { backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', padding: '12px' };
+
+  const renderChart = () => {
+    switch (type) {
+      case 'pie':
+      case 'donut':
+        return (
+          <RechartsPieChart>
+            <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={type === 'donut' ? 55 : 0} outerRadius={height > 400 ? 120 : 90} paddingAngle={2} label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}>
+              {chartData.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} stroke="hsl(var(--background))" strokeWidth={2} />)}
+            </Pie>
+            <Tooltip contentStyle={tooltipStyle} /><Legend />
+          </RechartsPieChart>
+        );
+      case 'line':
+        return (
+          <RechartsLineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+            <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
+            <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} /><Legend />
+            <Line type="monotone" dataKey="value" stroke={colors[0]} strokeWidth={3} dot={{ fill: colors[0] }} />
+          </RechartsLineChart>
+        );
+      case 'area':
+        return (
+          <RechartsAreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+            <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
+            <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} /><Legend />
+            <Area type="monotone" dataKey="value" stroke={colors[0]} fill={colors[0]} fillOpacity={0.3} />
+          </RechartsAreaChart>
+        );
+      case 'bar':
+        return (
+          <RechartsBarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} vertical={false} />
+            <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
+            <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }} /><Legend />
+            <Bar dataKey="value" fill={colors[0]} radius={[6, 6, 0, 0]} maxBarSize={60}>
+              {chartData.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
+            </Bar>
+          </RechartsBarChart>
+        );
+      case 'scatter':
+        return (
+          <RechartsScatterChart margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+            <XAxis dataKey="x" name="X" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} type="number" />
+            <YAxis dataKey="y" name="Y" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} type="number" />
+            <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={tooltipStyle} />
+            <Scatter name="Data" data={chartData} fill={colors[0]} />
+          </RechartsScatterChart>
+        );
+      default:
+        return <div className="h-full flex items-center justify-center text-muted-foreground"><p>Chart type coming soon</p></div>;
+    }
+  };
+
+  return (
+    <div style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">{renderChart()}</ResponsiveContainer>
+    </div>
+  );
+}
+
+// ============================================
+// Main Application
+// ============================================
+export default function DataVizApp() {
+  const [step, setStep] = useState<'input' | 'preview' | 'visualize'>('input');
+  const [inputMethod, setInputMethod] = useState<InputMethod>('file');
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<ProcessedData | null>(null);
+  const [urlData, setUrlData] = useState<URLAnalysisData | null>(null);
+  const [youtubeData, setYoutubeData] = useState<YouTubeAnalysisData | null>(null);
+  const [chartType, setChartType] = useState<ChartType>('bar');
+  const [config, setConfig] = useState<ChartConfig>({ chartType: 'bar', title: '', colorPalette: COLOR_PALETTES.default, showLegend: true, showGrid: true });
+  const [recommendations, setRecommendations] = useState<ChartRecommendation[]>([]);
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [viewMode, setViewMode] = useState<'single' | 'dashboard'>('single');
+  const [dashboardCharts, setDashboardCharts] = useState<DashboardChart[]>([]);
+
+  // File upload
+  const handleFileUpload = useCallback(async (file: File) => {
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (!res.ok) throw new Error('Upload failed');
+      const result = await res.json();
+      setData({ columns: result.columns, data: result.data, fileName: file.name, fileSize: file.size, summary: result.summary, dataQuality: result.dataQuality });
+      setRecommendations(result.recommendations || []);
+      setInsights(result.insights || []);
+      setStep('preview');
+      if (result.recommendations?.[0]) { setChartType(result.recommendations[0].chartType); setConfig(result.recommendations[0].config); }
+      toast({ title: 'Data processed', description: `${result.data.length.toLocaleString()} rows analyzed` });
+    } catch { toast({ title: 'Upload failed', variant: 'destructive' }); }
+    setLoading(false);
+  }, []);
+
+  // Pasted data
+  const handlePasteSubmit = useCallback(async (text: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/parse-pasted', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: text }) });
+      if (!res.ok) throw new Error('Parse failed');
+      const result = await res.json();
+      setData({ columns: result.columns, data: result.data, fileName: 'Pasted Data', fileSize: text.length, summary: result.summary });
+      setInsights(result.insights || []);
+      setStep('preview');
+      toast({ title: 'Data parsed', description: `${result.data.length.toLocaleString()} rows detected` });
+    } catch { toast({ title: 'Parse failed', description: 'Check your data format', variant: 'destructive' }); }
+    setLoading(false);
+  }, []);
+
+  // URL analysis
+  const handleURLSubmit = useCallback(async (url: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/analyze-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+      if (!res.ok) throw new Error('URL analysis failed');
+      const result = await res.json();
+      setUrlData(result.data);
+      setStep('preview');
+      toast({ title: 'Analysis Complete', description: `Website analysis for ${result.data.domain}` });
+    } catch { toast({ title: 'Analysis failed', description: 'Could not analyze URL', variant: 'destructive' }); }
+    setLoading(false);
+  }, []);
+
+  // YouTube analysis
+  const handleYouTubeSubmit = useCallback(async (url: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/analyze-youtube', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+      if (!res.ok) throw new Error('YouTube analysis failed');
+      const result = await res.json();
+      setYoutubeData(result.data);
+      setStep('preview');
+      toast({ title: 'Analysis Complete', description: `YouTube analysis for ${result.data.channel}` });
+    } catch { toast({ title: 'Analysis failed', description: 'Could not analyze YouTube video', variant: 'destructive' }); }
+    setLoading(false);
+  }, []);
+
+  // Reset
+  const handleReset = useCallback(() => {
+    setStep('input');
+    setData(null);
+    setUrlData(null);
+    setYoutubeData(null);
+    setInsights([]);
+    setRecommendations([]);
+    setDashboardCharts([]);
+  }, []);
+
+  const hasData = !!(data || urlData || youtubeData);
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <AnimatedBackground />
+      <Header onReset={handleReset} hasData={hasData} viewMode={viewMode} onViewModeChange={setViewMode} />
+      
+      <main className="flex-1 container py-8 px-4">
+        <AnimatePresence mode="wait">
+          {step === 'input' && (
+            <motion.div key="input" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <div className="max-w-4xl mx-auto">
+                <div className="text-center mb-8">
+                  <h2 className="text-3xl font-bold mb-2">Business Intelligence Platform</h2>
+                  <p className="text-muted-foreground">Analyze websites, YouTube videos, or your own data with AI-powered insights</p>
+                </div>
+                
+                <InputTabs activeTab={inputMethod} onTabChange={setInputMethod} />
+                
+                <AnimatePresence mode="wait">
+                  {inputMethod === 'file' && (
+                    <motion.div key="file" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
+                      <FileUploadZone onUpload={handleFileUpload} isLoading={loading} />
+                    </motion.div>
+                  )}
+                  {inputMethod === 'paste' && (
+                    <motion.div key="paste" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
+                      <PasteDataInput onSubmit={handlePasteSubmit} isLoading={loading} />
+                    </motion.div>
+                  )}
+                  {inputMethod === 'url' && (
+                    <motion.div key="url" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
+                      <URLInput onSubmit={handleURLSubmit} isLoading={loading} />
+                    </motion.div>
+                  )}
+                  {inputMethod === 'youtube' && (
+                    <motion.div key="youtube" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
+                      <YouTubeInput onSubmit={handleYouTubeSubmit} isLoading={loading} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 'preview' && (
+            <motion.div key="preview" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-6xl mx-auto">
+              {urlData && <WebsiteAnalysisReport data={urlData} />}
+              {youtubeData && <YouTubeAnalysisReport data={youtubeData} />}
+              {data && !urlData && !youtubeData && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold">{data.fileName}</h2>
+                      <p className="text-sm text-muted-foreground">{formatBytes(data.fileSize)} • {data.summary.totalRows.toLocaleString()} rows</p>
+                    </div>
+                    <Badge variant="secondary">{data.summary.columns} columns</Badge>
+                  </div>
+                  <DataTable data={data.data} columns={data.columns} />
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+
+      <footer className="border-t py-4 px-4 mt-auto">
+        <div className="container text-center text-sm text-muted-foreground">
+          Business Intelligence AI • Professional Website & YouTube Analysis Platform
+        </div>
+      </footer>
+    </div>
+  );
+}
